@@ -6,6 +6,8 @@ Version: 0.1.0
 
 The `cb_query_tester.py` script is a Python tool designed to test and analyze the performance of N1QL queries against a Couchbase Capella cluster. It executes a specified query multiple times, collects detailed performance metrics (e.g., execution time, elapsed time, result count), and generates a comprehensive report. The script also performs network diagnostics (e.g., traceroute, ping, DNS SRV resolution) to identify connectivity issues and groups query execution times into 30-second intervals for charting, addressing the problem of visualizing large datasets (e.g., 1000 query runs).
 
+This tool is designed to work out of the box with Couchbase's sample bucket `travel-sample`, but it works with any bucket that you specify. If you do not provide `-b/--bucket`, it defaults to `travel-sample`.
+
 ### Problems Solved
 - **Performance Analysis**: Measures query execution times (client-side and server-side), identifying slow and fast queries to optimize query performance.
 - **Network Troubleshooting**: Diagnoses connectivity issues to Couchbase Capella clusters with ping, traceroute, and TCP connection tests.
@@ -54,7 +56,7 @@ Run the single executable from your terminal with the required arguments:
 | `-U` | `--url` | Couchbase Capella cluster URL (e.g., `couchbases://cb.<cluster-id>.cloud.couchbase.com`). | Yes | None |
 | `-u` | `--username` | Username for authentication. Can also be set via `CB_USERNAME` environment variable. | Yes | None |
 | `-p` | `--password` | Password for authentication. Can also be set via `CB_PASSWORD` environment variable. | Yes | None |
-| `-b` | `--bucket` | Bucket name to query (e.g., `travel-sample`). | Yes | None |
+| `-b` | `--bucket` | Bucket name to query. Defaults to the sample bucket `travel-sample`. | No | `travel-sample` |
 | `-n` | `--num-iterations` | Number of times to execute the query (e.g., `1000` for extensive testing). | No | `10` |
 | `-q` | `--query` | Custom N1QL query to execute (e.g., `SELECT COUNT(1) FROM \`travel-sample\` WHERE city IS NOT MISSING`). | No | `SELECT * FROM \`<bucket>\`` |
 | `-j` | `--json` | Output the report in JSON format instead of human-readable text. | No | False |

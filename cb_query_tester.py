@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 from statistics import mean, median
 from datetime import datetime, timedelta, timezone
 import math
+import re
 import numpy as np
 from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, QueryOptions
@@ -57,8 +58,9 @@ def parse_arguments():
     )
     parser.add_argument(
         "-b", "--bucket",
-        required=True,
-        help="Bucket name to query (e.g., travel-sample)"
+        required=False,
+        default="travel-sample",
+        help="Bucket name to query (default: travel-sample)"
     )
     parser.add_argument(
         "-n", "--num-iterations",
@@ -198,6 +200,81 @@ def perform_network_diagnostics(host):
             diagnostics['tcp_tests'] = {}
     
     return diagnostics
+
+def normalize_query_string(query: str | None) -> str | None:
+    """Normalize user-provided SQL++ query string.
+    - Strips surrounding matching quotes (single/double) if present
+    - Replaces “smart quotes” with ASCII equivalents
+    - Collapses CR/LF/TAB whitespace to single spaces
+    - Strips trailing semicolon
+    """
+    if query is None:
+        return None
+    s = str(query).strip()
+    # Replace smart quotes
+    s = (
+        s.replace("\u201c", '"')
+         .replace("\u201d", '"')
+         .replace("\u2018", "'")
+         .replace("\u2019", "'")
+    )
+    # Strip surrounding matching quotes
+    if len(s) >= 2 and s[0] == s[-1] and s[0] in ("'", '"'):
+        s = s[1:-1]
+    # Collapse whitespace
+    s = re.sub(r"\s+", " ", s)
+    # Strip trailing semicolon
+    if s.endswith(";"):
+        s = s[:-1].rstrip()
+    return s
+
+
+def validate_and_prepare_inputs(url: str, username: str, password: str, bucket: str, iterations: int, query: str | None):
+    """Validate CLI inputs and return normalized values.
+    Raises ValueError with a combined message if invalid.
+    """
+    errors: list[str] = []
+    # URL validation
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ("couchbase", "couchbases"):
+            errors.append(f"Invalid URL scheme '{parsed.scheme}'. Use couchbase(s)://...")
+        if not parsed.hostname:
+            errors.append("URL must include a hostname")
+    except Exception as e:
+        errors.append(f"Invalid URL: {e}")
+
+    # Credentials / bucket
+    if not username:
+        errors.append("Username must not be empty")
+    if not password:
+        errors.append("Password must not be empty")
+    if not bucket:
+        errors.append("Bucket must not be empty")
+
+    # Iterations
+    if iterations is None or not isinstance(iterations, int):
+        errors.append("num-iterations must be an integer")
+    elif iterations <= 0:
+        errors.append("num-iterations must be > 0")
+    elif iterations > 100000:
+        errors.append("num-iterations too large; please use <= 100000")
+
+    # Normalize query
+    norm_query = normalize_query_string(query)
+
+    if errors:
+        raise ValueError("; ".join(errors))
+
+    return (
+        url,
+        username,
+        password,
+        bucket,
+        iterations,
+        norm_query,
+    )
+
 
 def measure_time(func):
     """Decorator to measure execution time of a function."""
@@ -632,11 +709,47 @@ def main():
         CB_PASSWORD = os.getenv("CB_PASSWORD", args.password)
         BUCKET_NAME = args.bucket
         NUM_ITERATIONS = args.num_iterations
-        QUERY = args.query if args.query else f"SELECT * FROM `{BUCKET_NAME}`"
+        QUERY = args.query if args.query else None
         JSON_OUTPUT = args.json
         REPORT_ONLY = args.report_only
         SKIP_DIAGNOSTICS = args.skip
         INCLUDE_TIMELINE = args.timeline
+
+        # Validate and normalize inputs
+        try:
+            (
+                CB_URL,
+                CB_USERNAME,
+                CB_PASSWORD,
+                BUCKET_NAME,
+                NUM_ITERATIONS,
+                QUERY,
+            ) = validate_and_prepare_inputs(
+                CB_URL, CB_USERNAME, CB_PASSWORD, BUCKET_NAME, NUM_ITERATIONS, QUERY
+            )
+        except ValueError as ve:
+            parsed_url = urlparse(CB_URL)
+            host = parsed_url.hostname
+            error_report = {
+                'tool_version': __version__,
+                'onlineChartData': [],
+                'error': str(ve),
+                'message': 'Invalid arguments',
+                'timeout': False,
+                'cluster_url': CB_URL,
+                'host': host,
+            }
+            if JSON_OUTPUT:
+                print(json.dumps(error_report, indent=2))
+                sys.stdout.flush()
+            else:
+                log_report(error_report)
+                sys.stdout.flush()
+            return
+
+        # Default query if not provided after normalization
+        if QUERY is None:
+            QUERY = f"SELECT * FROM `{BUCKET_NAME}`"
 
         # Configure logging for report-only mode
         if REPORT_ONLY:

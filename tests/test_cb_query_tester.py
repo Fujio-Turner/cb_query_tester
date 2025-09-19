@@ -239,5 +239,28 @@ class TestPerformNetworkDiagnostics(unittest.TestCase):
         self.assertTrue(result["tcp_tests"][0]["tcp_tests"][0]["success"])  # from stub
 
 
+class TestInputValidation(unittest.TestCase):
+    def test_normalize_query_string(self):
+        self.assertEqual(mod.normalize_query_string("'SELECT 1;'"), "SELECT 1")
+        # Smart quotes get normalized
+        self.assertEqual(mod.normalize_query_string("“SELECT 1”"), "SELECT 1")
+        # Whitespace collapsed
+        self.assertEqual(mod.normalize_query_string("SELECT\n\t1"), "SELECT 1")
+
+    def test_validate_and_prepare_inputs_bad_iterations(self):
+        with self.assertRaises(ValueError) as ctx:
+            mod.validate_and_prepare_inputs(
+                "couchbases://example.com", "u", "p", "b", 0, "SELECT 1"
+            )
+        self.assertIn("num-iterations must be > 0", str(ctx.exception))
+
+    def test_validate_and_prepare_inputs_bad_url(self):
+        with self.assertRaises(ValueError) as ctx:
+            mod.validate_and_prepare_inputs(
+                "http://", "u", "p", "b", 1, "SELECT 1"
+            )
+        self.assertIn("Invalid URL", str(ctx.exception))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
