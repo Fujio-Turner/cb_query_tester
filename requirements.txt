@@ -1,3 +1,4 @@
 couchbase==4.4.0
-dnspython==2.8.0
 numpy==2.3.3
+# Optional: enable DNS SRV diagnostics (resolve_dns_srv)
+dnspython==2.8.0

@@ -18,6 +18,8 @@ from couchbase.n1ql import QueryProfile
 from couchbase.auth import PasswordAuthenticator
 from couchbase.exceptions import CouchbaseException, TimeoutException
 
+__version__ = "0.1.0"
+
 try:
     import dns.resolver
     DNS_AVAILABLE = True
@@ -348,7 +350,7 @@ def parse_phase_time(time_str):
     elif time_str.endswith('ms'):
         return float(time_str[:-2])
     elif time_str.endswith('s'):
-        return float(time_str[:-2]) * 1000
+        return float(time_str[:-1]) * 1000
     else:
         try:
             return float(time_str)
@@ -441,9 +443,10 @@ def get_extreme_queries(query_times, profiles_list, query_timestamps):
         'chart_data': chart_data
     }
 
-def generate_report(query_times, conn_time, query_metrics_list, profiles_list, ping_summary, latency_summary, network_diagnostics, query_timestamps, include_timeline):
+def generate_report(query_times, conn_time, query_metrics_list, profiles_list, ping_summary, latency_summary, network_diagnostics, query_timestamps, include_timeline, tool_version: str | None = None):
     """Generate the report structure for logging or JSON."""
     report = {
+        'tool_version': tool_version or __version__,
         'onlineChartData': get_extreme_queries(query_times, profiles_list, query_timestamps)['chart_data'],
         'timing_statistics': {
             'initial_connection_time_ms': float(round(conn_time * 1000, 2)) if conn_time is not None else 0,
@@ -517,6 +520,10 @@ def generate_report(query_times, conn_time, query_metrics_list, profiles_list, p
 
 def log_report(report):
     """Log the report in the original format to stdout."""
+    print("\n=== Couchbase Query Tester Report ===")
+    if 'tool_version' in report:
+        print(f"Version: {report['tool_version']}")
+    
     print("\n=== Timing Statistics (ms) ===")
     print(f"Initial Connection Time: {report['timing_statistics']['initial_connection_time_ms']:.2f} ms")
     
@@ -671,6 +678,7 @@ def main():
                 logger.info("Initial connection time: %.2f ms", conn_time * 1000)
         except TimeoutException as e:
             error_report = {
+                'tool_version': __version__,
                 'onlineChartData': [],
                 'error': str(e),
                 'message': "Failed to connect to cluster due to timeout",
@@ -687,6 +695,7 @@ def main():
             return
         except CouchbaseException as e:
             error_report = {
+                'tool_version': __version__,
                 'onlineChartData': [],
                 'error': str(e),
                 'message': "Failed to connect to cluster",
@@ -752,7 +761,7 @@ def main():
 
         # Generate and output report
         ping_summary, latency_summary = summarize_ping_metrics(ping_results)
-        report = generate_report(query_times, conn_time, query_metrics_list, profiles_list, ping_summary, latency_summary, network_diagnostics, query_timestamps, INCLUDE_TIMELINE)
+        report = generate_report(query_times, conn_time, query_metrics_list, profiles_list, ping_summary, latency_summary, network_diagnostics, query_timestamps, INCLUDE_TIMELINE, tool_version=__version__)
         
         if JSON_OUTPUT:
             print(json.dumps(report, indent=2))
@@ -763,6 +772,7 @@ def main():
 
     except Exception as e:
         error_report = {
+            'tool_version': __version__,
             'onlineChartData': [],
             'error': str(e),
             'message': "Script failed unexpectedly",

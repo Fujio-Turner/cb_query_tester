@@ -1,5 +1,7 @@
 # Couchbase Query Performance Tester
 
+Version: 0.1.0
+
 ## Overview
 
 The `cb_query_tester.py` script is a Python tool designed to test and analyze the performance of N1QL queries against a Couchbase Capella cluster. It executes a specified query multiple times, collects detailed performance metrics (e.g., execution time, elapsed time, result count), and generates a comprehensive report. The script also performs network diagnostics (e.g., traceroute, ping, DNS SRV resolution) to identify connectivity issues and groups query execution times into 30-second intervals for charting, addressing the problem of visualizing large datasets (e.g., 1000 query runs).
@@ -25,11 +27,25 @@ This script is ideal for developers, database administrators, and DevOps enginee
   - A bucket (e.g., `travel-sample`) for querying.
 - **Network**: Ensure the client’s IP is whitelisted in Couchbase Capella’s access settings.
 
-## Usage
-Run the script from the command line with the required arguments:
+## Single-file executables and Releases
+Single-file executables are built for Linux, macOS, and Windows by GitHub Actions when changes land on the `main` branch. Binaries are attached to GitHub Releases for each version (starting with 0.1.0). You can download the appropriate binary for your OS:
 
+- Linux: `cb_query_tester`
+- macOS: `cb_query_tester`
+- Windows: `cb_query_tester.exe`
+
+If running on macOS or Linux, mark it executable once: `chmod +x ./cb_query_tester`.
+
+## Usage
+Run the single executable from your terminal with the required arguments:
+
+- macOS/Linux:
 ```bash
-python3 query_tester_10.py -U <cluster-url> -u <username> -p <password> -b <bucket> [options]
+./cb_query_tester -U <cluster-url> -u <username> -p <password> -b <bucket> [options]
+```
+- Windows (PowerShell):
+```powershell
+.\cb_query_tester.exe -U <cluster-url> -u <username> -p <password> -b <bucket> [options]
 ```
 
 ### Command-Line Arguments
@@ -49,6 +65,7 @@ python3 query_tester_10.py -U <cluster-url> -u <username> -p <password> -b <buck
 ### Output Structure
 The script generates a report in JSON (with `-j`) or human-readable text, containing:
 
+- **`tool_version`**: The version of `cb_query_tester.py` that produced the report (e.g., `0.1.0`). Also printed at the top of the human-readable report.
 - **`onlineChartData`**: Array of query performance metrics grouped by 30-second intervals, designed for charting on `https://kanaries.net/tools/json-to-chart`. Each entry includes:
   - `dt`: Timestamp (ISO 8601, UTC, e.g., `2025-09-19T04:55:30Z`), floored to the nearest 30 seconds.
   - `sum`: Number of queries executed in the interval (integer).
@@ -73,6 +90,7 @@ The script generates a report in JSON (with `-j`) or human-readable text, contai
 - **`network_diagnostics`**: Traceroute, ping, DNS SRV records, and TCP connection tests (unless `-s` is used).
 
 **Error Report** (on failure, e.g., timeout):
+- `tool_version`: The version that encountered the error.
 - `onlineChartData`: Empty array (`[]`).
 - `error`: Error message (e.g., `LCB_ERR_TIMEOUT (201): The request timed out`).
 - `message`: Description (e.g., `Failed to connect to cluster due to timeout`).
@@ -85,43 +103,68 @@ Below are example commands to demonstrate different use cases. Replace `<cluster
 
 ### 1. Generate a Basic JSON Report
 Run 10 iterations of the default query (`SELECT * FROM \`travel-sample\``) and output a JSON report:
+- macOS/Linux:
 ```bash
-python3 query_tester_10.py -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -j > report.json
+./cb_query_tester -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -j > report.json
 ```
-- **Output**: `report.json` with `onlineChartData`, `timing_statistics`, etc., but no `query_timeline` (since `-t` is not used).
+- Windows (PowerShell):
+```powershell
+.\cb_query_tester.exe -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -j > report.json
+```
+- **Output**: `report.json` with `tool_version`, `onlineChartData`, `timing_statistics`, etc., but no `query_timeline` (since `-t` is not used).
 - **Use Case**: Quick performance check with minimal output.
 
 ### 2. Skip Network Diagnostics
 Run 100 iterations of a custom query, skipping diagnostics to focus on query performance:
+- macOS/Linux:
 ```bash
-python3 query_tester_10.py -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -j -q 'SELECT COUNT(1) FROM `travel-sample` WHERE city IS NOT MISSING' -n 100 -s -r > report.json
+./cb_query_tester -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -j -q 'SELECT COUNT(1) FROM `travel-sample` WHERE city IS NOT MISSING' -n 100 -s -r > report.json
 ```
-- **Output**: `report.json` with `onlineChartData` (grouped by 30-second intervals), no `network_diagnostics`.
+- Windows (PowerShell):
+```powershell
+.\cb_query_tester.exe -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -j -q "SELECT COUNT(1) FROM `travel-sample` WHERE city IS NOT MISSING" -n 100 -s -r > report.json
+```
+- **Output**: `report.json` with `tool_version`, `onlineChartData` (grouped by 30-second intervals), no `network_diagnostics`.
 - **Use Case**: Faster execution for query-focused testing in automated pipelines.
 
 ### 3. Generate `onlineChartData` for Charting
 Run 1000 iterations and include `query_timeline` for detailed analysis, with `onlineChartData` for charting:
+- macOS/Linux:
 ```bash
-python3 query_tester_10.py -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -j -q 'SELECT COUNT(1) FROM `travel-sample` WHERE city IS NOT MISSING' -n 1000 -s -r -t > report.json
+./cb_query_tester -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -j -q 'SELECT COUNT(1) FROM `travel-sample` WHERE city IS NOT MISSING' -n 1000 -s -r -t > report.json
 ```
-- **Output**: `report.json` with `onlineChartData` (~16–17 groups, each with ~50–60 queries) and `query_timeline` (1000 entries).
+- Windows (PowerShell):
+```powershell
+.\cb_query_tester.exe -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -j -q "SELECT COUNT(1) FROM `travel-sample` WHERE city IS NOT MISSING" -n 1000 -s -r -t > report.json
+```
+- **Output**: `report.json` with `tool_version`, `onlineChartData` (~16–17 groups, each with ~50–60 queries) and `query_timeline` (1000 entries).
 - **Charting**: Copy `onlineChartData` to `https://kanaries.net/tools/json-to-chart`, set `dt` as x-axis, and `mean` or `max` as y-axis to visualize latency trends.
 - **Use Case**: Identify latency spikes in large-scale tests (e.g., max > 400 ms).
 
 ### 4. Debug Connectivity with Full Diagnostics
 Run a single iteration with diagnostics and human-readable output:
+- macOS/Linux:
 ```bash
-python3 query_tester_10.py -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -q 'SELECT 1' -n 1 -t
+./cb_query_tester -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -q 'SELECT 1' -n 1 -t
 ```
-- **Output**: Console logs with diagnostics (traceroute, ping, DNS SRV) and a text report including `onlineChartData` and `query_timeline`.
+- Windows (PowerShell):
+```powershell
+.\cb_query_tester.exe -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -q "SELECT 1" -n 1 -t
+```
+- **Output**: Console logs with diagnostics (traceroute, ping, DNS SRV) and a text report including `tool_version`, `onlineChartData` and `query_timeline`.
 - **Use Case**: Troubleshoot connection timeouts or network issues (e.g., high ping latency).
 
 ### 5. Minimal Test for Timeout Debugging
 Run a single simple query to verify connectivity:
+- macOS/Linux:
 ```bash
-python3 query_tester_10.py -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -j -q 'SELECT 1' -n 1 -s -r -t > report.json
+./cb_query_tester -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -j -q 'SELECT 1' -n 1 -s -r -t > report.json
 ```
-- **Output**: `report.json` with minimal data, useful for checking if timeouts persist.
+- Windows (PowerShell):
+```powershell
+.\cb_query_tester.exe -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -j -q "SELECT 1" -n 1 -s -r -t > report.json
+```
+- **Output**: `report.json` with `tool_version` and minimal data, useful for checking if timeouts persist.
 - **Use Case**: Quick validation of cluster access and credentials.
 
 ## Notes
