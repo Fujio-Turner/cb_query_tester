@@ -4,6 +4,9 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build:
@@ -32,7 +35,7 @@ jobs:
 
       - name: Build single-file executable with PyInstaller
         run: |
-          pyinstaller --onefile --name cb_query_tester \
+          python -m PyInstaller --onefile --name cb_query_tester \
             --hidden-import numpy \
             --hidden-import couchbase.cluster \
             --hidden-import couchbase.options \
@@ -42,9 +45,16 @@ jobs:
             --hidden-import dns.resolver \
             cb_query_tester.py
 
-      - name: Show dist contents
+      - name: Show dist contents (Unix)
+        if: runner.os != 'Windows'
         run: |
-          ls -al dist || dir dist
+          ls -al dist
+
+      - name: Show dist contents (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          Get-ChildItem -Force dist
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -53,3 +63,27 @@ jobs:
           path: |
             dist/cb_query_tester*
           if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          merge-multiple: true
+
+      - name: List downloaded files
+        run: |
+          find ./artifacts -maxdepth 2 -type f -print
+
+      - name: Create GitHub Release and upload binaries
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/**/cb_query_tester*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
