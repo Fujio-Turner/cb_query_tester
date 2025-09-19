@@ -69,11 +69,12 @@ The script generates a report in JSON (with `-j`) or human-readable text, contai
 
 - **`tool_version`**: The version of `cb_query_tester.py` that produced the report (e.g., `0.1.0`). Also printed at the top of the human-readable report.
 - **`onlineChartData`**: Array of query performance metrics grouped by 30-second intervals, designed for charting on `https://kanaries.net/tools/json-to-chart`. Each entry includes:
-  - `dt`: Timestamp (ISO 8601, UTC, e.g., `2025-09-19T04:55:30Z`), floored to the nearest 30 seconds.
-  - `sum`: Number of queries executed in the interval (integer).
+  - `dateTime`: Timestamp (ISO 8601, UTC, e.g., `2025-09-19T04:55:30Z`), floored to the nearest 30 seconds.
+  - `queryCount`: Number of queries executed in the interval (integer).
   - `min`: Minimum client-side elapsed time (ms, float) in the interval.
-  - `max`: Maximum client-side elapsed time (ms, float) in the interval.
   - `mean`: Average client-side elapsed time (ms, float) in the interval.
+  - `max`: Maximum client-side elapsed time (ms, float) in the interval.
+
 - **`query_timeline`** (if `-t` is used): Array of per-query metrics, each with:
   - `dt`: Timestamp of query execution (ISO 8601, UTC, e.g., `2025-09-19T04:55:30.123456Z`).
   - `v`: Client-side elapsed time (ms, float).
@@ -140,7 +141,7 @@ Run 1000 iterations and include `query_timeline` for detailed analysis, with `on
 .\cb_query_tester.exe -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -j -q "SELECT COUNT(1) FROM `travel-sample` WHERE city IS NOT MISSING" -n 1000 -s -r -t > report.json
 ```
 - **Output**: `report.json` with `tool_version`, `onlineChartData` (~16–17 groups, each with ~50–60 queries) and `query_timeline` (1000 entries).
-- **Charting**: Copy `onlineChartData` to `https://kanaries.net/tools/json-to-chart`, set `dt` as x-axis, and `mean` or `max` as y-axis to visualize latency trends.
+- **Charting**: Copy `onlineChartData` to `https://kanaries.net/tools/json-to-chart` or `https://www.encodedna.com/google-chart/make-charts-using-json-data-dynamically.htm`, set `dt` as x-axis, and `mean` or `max` as y-axis to visualize latency trends.
 - **Use Case**: Identify latency spikes in large-scale tests (e.g., max > 400 ms).
 
 ### 4. Debug Connectivity with Full Diagnostics
@@ -169,9 +170,35 @@ Run a single simple query to verify connectivity:
 - **Output**: `report.json` with `tool_version` and minimal data, useful for checking if timeouts persist.
 - **Use Case**: Quick validation of cluster access and credentials.
 
+## Quick chart from JSON (jq + Encodedna)
+
+You can quickly visualize results using the `onlineChartData` array in the JSON report:
+
+1) Run the tool to produce JSON-only output (no logs):
+- macOS/Linux:
+```bash
+./cb_query_tester -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -n 100 -s -r -j > output.json
+```
+- Windows (PowerShell):
+```powershell
+.\cb_query_tester.exe -U couchbases://cb.<cluster-id>.cloud.couchbase.com -u <username> -p <password> -b travel-sample -n 100 -s -r -j > output.json
+```
+
+2) Extract just the chart data with jq:
+```bash
+cat output.json | jq '.onlineChartData'
+```
+Copy the resulting JSON array and paste it into:
+- https://www.encodedna.com/google-chart/make-charts-using-json-data-dynamically.htm
+
+Use `dateTime` for the x-axis and `mean` (or `max`) for the y-axis.
+
+- Sample report: `sample/output_localhost.json`
+- Screenshot example: ![JSON to chart](img/json_to_chart.png)
+
 ## Notes
 - **Timeouts**: If you encounter `LCB_ERR_TIMEOUT`, verify IP whitelisting, credentials, and network connectivity. Run without `-r` to see detailed logs.
-- **Charting**: Use `onlineChartData` for `https://kanaries.net/tools/json-to-chart`. For 1000 iterations (~500 seconds with 0.5s delays), expect ~16–17 groups. Use `mean` or `max` to spot spikes (e.g., >400 ms).
+- **Charting**: Use `onlineChartData` with `https://kanaries.net/tools/json-to-chart` or `https://www.encodedna.com/google-chart/make-charts-using-json-data-dynamically.htm`. For 1000 iterations (~500 seconds with 0.5s delays), expect ~16–17 groups. Use `mean` or `max` to spot spikes (e.g., >400 ms).
 - **Performance**: Client-side times (e.g., 329.02–450.41 ms) may be higher than server-side times (e.g., 1.45–2.2 ms) due to network latency. Check `extreme_queries` for details.
 - **Dependencies**: Install `numpy` and `couchbase`. Install `dnspython` if not using `-s`.
 

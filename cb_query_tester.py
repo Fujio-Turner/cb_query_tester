@@ -5,7 +5,6 @@ import os
 import json
 import subprocess
 import socket
-import signal
 import sys
 from urllib.parse import urlparse
 from statistics import mean, median
@@ -506,11 +505,11 @@ def get_extreme_queries(query_times, profiles_list, query_timestamps):
         for ts_floored in sorted(time_groups.keys()):
             times = time_groups[ts_floored]
             chart_data.append({
-                'dt': datetime.fromtimestamp(ts_floored, timezone.utc).isoformat(),
-                'sum': len(times),
+                'dateTime': datetime.fromtimestamp(ts_floored, timezone.utc).isoformat(),
+                'queryCount': len(times),
                 'min': float(round(min(times), 2)),
-                'max': float(round(max(times), 2)),
-                'mean': float(round(mean(times), 2))
+                'mean': float(round(mean(times), 2)),
+                'max': float(round(max(times), 2))
             })
     
     return {
