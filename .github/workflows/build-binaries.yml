@@ -2,11 +2,11 @@ name: Build single-file executables
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
-  push:
+    branches:
+      - main
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
