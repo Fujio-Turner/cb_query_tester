@@ -95,10 +95,28 @@ jobs:
         run: |
           find ./artifacts -maxdepth 2 -type f -print
 
+      - name: Prepare versioned assets
+        run: |
+          set -euo pipefail
+          TAG="${{ github.ref_name }}"
+          mkdir -p release
+          if [ -f "artifacts/cb_query_tester-Linux/cb_query_tester" ]; then
+            cp artifacts/cb_query_tester-Linux/cb_query_tester "release/cb_query_tester-${TAG}-linux"
+            chmod +x "release/cb_query_tester-${TAG}-linux"
+          fi
+          if [ -f "artifacts/cb_query_tester-macOS/cb_query_tester" ]; then
+            cp artifacts/cb_query_tester-macOS/cb_query_tester "release/cb_query_tester-${TAG}-macos"
+            chmod +x "release/cb_query_tester-${TAG}-macos"
+          fi
+          if [ -f "artifacts/cb_query_tester-Windows/cb_query_tester.exe" ]; then
+            cp artifacts/cb_query_tester-Windows/cb_query_tester.exe "release/cb_query_tester-${TAG}-windows.exe"
+          fi
+          echo "Prepared assets:" && ls -al release
+
       - name: Create GitHub Release and upload binaries
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/**/cb_query_tester*
+            release/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
