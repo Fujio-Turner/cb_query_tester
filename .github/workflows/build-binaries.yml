@@ -33,7 +33,8 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build single-file executable with PyInstaller
+      - name: Build single-file executable with PyInstaller (Unix)
+        if: runner.os != 'Windows'
         run: |
           python -m PyInstaller --onefile --name cb_query_tester \
             --hidden-import numpy \
@@ -44,6 +45,20 @@ jobs:
             --hidden-import couchbase.exceptions \
             --hidden-import dns.resolver \
             cb_query_tester.py
+
+      - name: Build single-file executable with PyInstaller (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: >-
+          python -m PyInstaller --onefile --name cb_query_tester
+          --hidden-import numpy
+          --hidden-import couchbase.cluster
+          --hidden-import couchbase.options
+          --hidden-import couchbase.n1ql
+          --hidden-import couchbase.auth
+          --hidden-import couchbase.exceptions
+          --hidden-import dns.resolver
+          cb_query_tester.py
 
       - name: Show dist contents (Unix)
         if: runner.os != 'Windows'
