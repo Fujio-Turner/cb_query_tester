@@ -19,7 +19,7 @@ from couchbase.n1ql import QueryProfile
 from couchbase.auth import PasswordAuthenticator
 from couchbase.exceptions import CouchbaseException, TimeoutException
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"
 
 try:
     import dns.resolver
