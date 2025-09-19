@@ -8,6 +8,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build (${{ matrix.os }})
@@ -89,7 +92,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
-          merge-multiple: true
+          # Keep artifacts in separate subfolders named after the artifact
+          merge-multiple: false
 
       - name: List downloaded files
         run: |
